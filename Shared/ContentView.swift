@@ -9,29 +9,36 @@ import SwiftUI
 
 struct ContentView: View {
     
-    @EnvironmentObject var store: Store
+    @State private var isPresented: Bool = false
+    @EnvironmentObject var store: Store<AppState>
     
     struct Props {
         let  counter: Int
         let  onIncrement: () -> Void
         let  onDecrement: () -> Void
-        let onAdd: (Int) -> Void
+        let  onAdd: (Int) -> Void
+        let  onIncrementAsync: () -> Void
     }
     
-    private func map(state: State) -> Props {
+    private func map(state: CounterState) -> Props {
         Props(counter: state.counter) {
             store.dispatch(action: IncrementAction())
         } onDecrement: {
             store.dispatch(action: DecrementAction())
         } onAdd: {
             store.dispatch(action: AddAction(value: $0))
+        } onIncrementAsync: {
+            store.dispatch(action: IncrementActionAsync())
         }
     }
     
     var body: some View {
-        let props = map(state: store.state)
+        let props = map(state: store.state.counterState)
         
         VStack(alignment: .center, spacing: 10) {
+            
+            
+            Spacer()
             
             Text("\(props.counter)")
                 .padding(5)
@@ -56,15 +63,35 @@ struct ContentView: View {
                 Text("onAdd")
             }
             .padding(5)
+            
+            Button {
+                props.onIncrementAsync()
+            } label: {
+                Text("onIncrementAsync")
+            }
+            .padding(5)
+            
+            Spacer()
+            
+            Button {
+                isPresented = true
+            } label: {
+                Text("Add Task")
+            }
+            
+            Spacer()
+            
+        } //: VSTACK
+        .sheet(isPresented: $isPresented) {
+            
         }
-        
     }
 }
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         
-        let store = Store(reducer: reducer)
+        let store = Store(reducer: counterReducer, state: CounterState())
         
         ContentView().environmentObject(store)
     }

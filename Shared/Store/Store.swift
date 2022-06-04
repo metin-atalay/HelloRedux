@@ -6,52 +6,70 @@
 //
 
 import Foundation
-import CloudKit
 
-struct State {
+typealias Dispatcher = (Action) -> Void
+
+typealias Reducer<State: ReduxState> = (_ state: State, _ action: Action) -> State
+
+typealias Middleware<StoreState: ReduxState> = (StoreState, Action, @escaping Dispatcher) -> Void
+
+
+protocol ReduxState {}
+
+struct AppState: ReduxState {
+    var counterState = CounterState()
+    var taskState = TaskState()
+    var personState = PersonState()
+}
+
+struct TaskState: ReduxState {
+    var tasks: [Task] = [Task]()
+}
+
+struct PersonState : ReduxState {
+    var person : [Person] = []
+}
+
+struct CounterState: ReduxState {
     var counter = 0
 }
 
 protocol Action {}
 
 struct IncrementAction: Action { }
+struct IncrementActionAsync: Action {}
 struct DecrementAction: Action {}
+struct AddTaskAction: Action {
+    let task: Task
+}
+struct AddPersonAction: Action {
+    let person: Person
+}
 
 struct AddAction: Action {
     let value: Int
 }
 
-
-typealias Reducer = (_ state: State, _ action: Action) -> State
-
-func reducer(_ state: State, _ action: Action) -> State {
+class Store<StoreState: ReduxState> :ObservableObject {
+    var reducer : Reducer<StoreState>
+    @Published var state: StoreState
+    var middelewares: [Middleware<StoreState>]
     
-    var state = state
-    
-    switch action {
-    case _ as IncrementAction:
-        state.counter += 1
-    case _ as DecrementAction:
-        state.counter -= 1
-    case let action as AddAction:
-        state.counter += action.value
-    default:
-        break
-    }
-    
-    return state
-}
-
-class Store :ObservableObject {
-    var reducer : Reducer
-    @Published var state: State
-    
-    init(reducer: @escaping Reducer, state: State = State() ) {
+    init(reducer: @escaping Reducer<StoreState>, state: StoreState, middlewares: [Middleware<StoreState>] = []  ) {
         self.reducer = reducer
         self.state = state
+        self.middelewares = middlewares
     }
     
     func dispatch(action: Action) {
-        state = reducer(state, action)
+        DispatchQueue.main.async {
+            self.state = self.reducer(self.state, action)
+        }
+        
+        // run all middlewares
+        
+        middelewares.forEach { middleware in
+            middleware(state, action, dispatch)
+        }
     }
 }
